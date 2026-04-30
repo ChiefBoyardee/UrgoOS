@@ -1,0 +1,2061 @@
+# UrgoOS: Unified Local Cognitive Runtime — Coding Agent Handoff Plan
+
+**Document version:** v0.1  
+**Created:** 2026-04-29  
+**Primary goal:** Create a clean, unified, local-first AI wrapper/runtime inspired by the best ideas from Letta/MemGPT, LangGraph, LlamaIndex, Mem0, Graphiti/Zep, Cognee, Open WebUI, AG2/AutoGen, and adjacent agent-memory systems — without copy-pasting them into an unmaintainable or license-risky monster repo.
+
+---
+
+## 0. Executive Summary
+
+We are building **UrgoOS**: a modular local cognitive runtime for persistent AI agents.
+
+The aim is **not** to fork every major wrapper and stitch their codebases together. The aim is to:
+
+1. Clone upstream projects into a quarantined research folder.
+2. Read and map their architectures, features, APIs, memory designs, tool designs, UI patterns, and licensing constraints.
+3. Produce clean-room internal specs from those findings.
+4. Delete or isolate the upstream source after research.
+5. Recreate the best consolidated features behind our own stable interfaces.
+6. Build a unified, factored UrgoOS core that can run local models, store persistent memory, use tools safely, reflect over experience, and scale from Jetson Orin to a 3090/VPS distributed setup.
+
+The product vision:
+
+> UrgoOS is a local-first AI operating layer that turns small and medium local models into persistent, tool-using, memory-aware, self-improving assistants by surrounding them with retrieval, reflection, workflows, tools, durable state, and user-controlled memory.
+
+---
+
+## 1. Non-Negotiable Principles
+
+### 1.1 No cursed mega-fork
+
+Do **not** merge all upstream repos into one production codebase.
+
+Bad:
+
+```text
+urgo/
+  letta/
+  langgraph/
+  mem0/
+  open-webui/
+  cognee/
+  graphiti/
+  llama_index/
+  ag2/
+  random patches everywhere
+```
+
+Good:
+
+```text
+urgo/
+  research/upstream/       # quarantined; temporary; not imported by production
+  docs/research/           # notes and feature matrices
+  packages/urgo-protocol/  # our stable interfaces
+  services/urgo-core/      # our runtime
+  adapters/                # optional integrations
+  apps/                    # UI/CLI/mobile
+```
+
+### 1.2 Research first, implement second
+
+The coding agent should clone repos only for study. Production code should be written from our own specs, interfaces, and architecture notes.
+
+### 1.3 License hygiene
+
+External source code must not be copied into UrgoOS production code unless:
+
+- the license allows it,
+- attribution and notices are preserved,
+- the copied component is isolated,
+- the decision is documented,
+- and there is a clear reason not to reimplement the feature cleanly.
+
+Default behavior:
+
+> Read upstream code. Write notes. Reimplement concepts. Do not copy implementation.
+
+### 1.4 Build the kernel, not the monster
+
+The highest-value artifact is the **UrgoOS cognitive kernel**:
+
+- Model Gateway
+- Memory Kernel
+- Context Assembler
+- Tool Registry
+- Workflow Runtime
+- Reflection Worker
+- Evaluation Harness
+- UI/API surfaces
+
+Everything else is optional, replaceable, or adapter-based.
+
+### 1.5 Local-first, but distributed-ready
+
+UrgoOS should run in a small local setup first, but be designed to grow into:
+
+- Jetson Orin always-on assistant
+- Windows/3090 heavy model worker
+- VPS broker/API endpoint
+- phone/mobile control surface
+- desktop coding workbench
+
+---
+
+## 2. Upstream Projects to Study
+
+Clone these into `research/upstream/` only.
+
+```bash
+mkdir -p research/upstream
+cd research/upstream
+
+git clone https://github.com/letta-ai/letta.git
+git clone https://github.com/letta-ai/agent-file.git
+git clone https://github.com/langchain-ai/langgraph.git
+git clone https://github.com/run-llama/llama_index.git
+git clone https://github.com/mem0ai/mem0.git
+git clone https://github.com/getzep/graphiti.git
+git clone https://github.com/topoteretes/cognee.git
+git clone https://github.com/open-webui/open-webui.git
+git clone https://github.com/ag2ai/ag2.git
+```
+
+Optional adjacent projects to study later:
+
+```bash
+git clone https://github.com/microsoft/autogen.git
+git clone https://github.com/topoteretes/awesome-ai-memory.git
+```
+
+Do not import these repos into production packages.
+
+---
+
+## 3. Why Each Project Matters
+
+### 3.1 Letta / MemGPT
+
+**Study for:**
+
+- Stateful agents
+- Persistent memory
+- Agent identity
+- Memory tiering
+- Self-improvement loop ideas
+- Agent serialization ideas through Agent File
+
+**UrgoOS equivalent:**
+
+- `AgentIdentity`
+- `MemoryKernel`
+- `CoreMemory`
+- `ArchivalMemory`
+- `RecallMemory`
+- `AgentSnapshot`
+
+### 3.2 LangGraph
+
+**Study for:**
+
+- Durable workflows
+- Stateful graphs
+- resumable agent execution
+- human-in-the-loop state modification
+- checkpointing
+- long-running agent orchestration
+
+**UrgoOS equivalent:**
+
+- `WorkflowRuntime`
+- `CheckpointStore`
+- `HumanApprovalGate`
+- `StateMachine`
+- `DurableTaskRunner`
+
+### 3.3 LlamaIndex
+
+**Study for:**
+
+- RAG abstractions
+- document ingestion
+- index management
+- memory blocks
+- short-term plus long-term memory
+- retrievers and query engines
+
+**UrgoOS equivalent:**
+
+- `KnowledgeIngest`
+- `DocumentIndex`
+- `MemoryBlock`
+- `Retriever`
+- `ContextAssembler`
+
+### 3.4 Mem0
+
+**Study for:**
+
+- user memory extraction
+- preference memory
+- personalization memory
+- memory scoring
+- memory updates over time
+- memory as a standalone service
+
+**UrgoOS equivalent:**
+
+- `PreferenceMemory`
+- `MemoryExtractor`
+- `MemoryScorer`
+- `MemoryUpdater`
+- `UserProfileMemory`
+
+### 3.5 Graphiti / Zep
+
+**Study for:**
+
+- temporal knowledge graphs
+- facts that change over time
+- provenance
+- validity windows
+- entity/relationship extraction
+- agent memory over dynamic real-world information
+
+**UrgoOS equivalent:**
+
+- `TemporalGraphMemory`
+- `EntityStore`
+- `RelationshipStore`
+- `valid_from`
+- `valid_to`
+- `invalidated_by`
+- `provenance_event_id`
+
+### 3.6 Cognee
+
+**Study for:**
+
+- knowledge engine design
+- vector + graph retrieval
+- context curation
+- document ingestion
+- ontology mapping
+- session and memory management
+
+**UrgoOS equivalent:**
+
+- `KnowledgeGraphBackend`
+- `OntologyMapper`
+- `HybridRetriever`
+- `ContextCurationEngine`
+
+### 3.7 Open WebUI
+
+**Study for:**
+
+- local model UX
+- chat UI
+- model selection
+- RAG UI
+- tools/functions UX
+- admin panels
+- user management
+- local deployment ergonomics
+
+**Important caution:** Treat Open WebUI as a UI/UX reference and possibly an external sidecar, not as a source to directly copy into UrgoOS core. Its license/branding situation is more complex than the Apache/MIT projects.
+
+**UrgoOS equivalent:**
+
+- `urgo-web`
+- `model-picker`
+- `memory-browser`
+- `tool-admin`
+- `chat-workspace`
+- `local-deployment-dashboard`
+
+### 3.8 AG2 / AutoGen lineage
+
+**Study for:**
+
+- multi-agent conversations
+- human-in-the-loop workflows
+- speaker selection
+- tool-using agents
+- autonomous collaborative problem solving
+
+**UrgoOS equivalent:**
+
+- `MultiAgentRuntime`
+- `AgentGroup`
+- `PlannerAgent`
+- `CriticAgent`
+- `ToolExecutorAgent`
+- `MemoryLibrarianAgent`
+
+---
+
+## 4. Required Research Deliverables
+
+Before implementing UrgoOS production code, create these documents.
+
+### 4.1 `docs/research/feature-matrix.md`
+
+For each upstream project, include:
+
+| Field | Notes |
+|---|---|
+| Project | name and repo |
+| Primary purpose | memory, workflow, UI, graph, multi-agent, etc. |
+| Core abstractions | classes/modules/interfaces to study |
+| Storage backends | SQLite, Postgres, vector DB, graph DB, filesystem, etc. |
+| Model providers | OpenAI, local, Anthropic, Ollama, llama.cpp, etc. |
+| Memory model | short-term, long-term, graph, profile, episodic |
+| Tool model | tool calling, function registry, MCP, plugins |
+| Workflow model | graph, loop, task, event, queue |
+| UI ideas | useful screens/components |
+| Best ideas to recreate | short bullet list |
+| Avoid / do not copy | risky patterns or bloat |
+| License notes | summary |
+| Integration recommendation | reimplement, dependency, adapter, sidecar, avoid |
+
+### 4.2 `docs/research/license-matrix.md`
+
+Include:
+
+| Project | License | Safe usage pattern | Risk notes |
+|---|---|---|---|
+| Letta | Apache-2.0 | dependency/adapter/reference | preserve notices if vendored |
+| Agent File | Apache-2.0 | format inspiration/dependency | preserve notices |
+| LangGraph | MIT | dependency/adapter/reference | preserve notices |
+| LlamaIndex | MIT | dependency/adapter/reference | preserve notices |
+| Mem0 | Apache-2.0 | sidecar/dependency/reference | preserve notices |
+| Graphiti | Apache-2.0 | sidecar/dependency/reference | graph DB dependency complexity |
+| Cognee | Apache-2.0 | sidecar/reference | backend complexity |
+| Open WebUI | Open WebUI license / license history | UI reference or sidecar only | branding/license caution |
+| AG2 | Apache-2.0 | dependency/reference | inherited AutoGen lineage, preserve notices |
+
+Add exact checked commit SHA for each repo.
+
+### 4.3 `docs/research/architecture-notes.md`
+
+For each project:
+
+- How it structures the app
+- Key modules
+- Data flow
+- How memory is stored/retrieved
+- How tools are registered/executed
+- How state persists
+- What is worth recreating
+- What should be avoided
+
+### 4.4 `docs/research/reusable-patterns.md`
+
+This is the clean-room bridge.
+
+For each idea to recreate, write:
+
+```markdown
+## Pattern: Temporal fact invalidation
+
+Observed in:
+- Graphiti
+
+Concept:
+- Facts should not be treated as permanently true.
+- Store validity windows.
+- When contradicted, mark prior fact invalid rather than deleting it.
+
+UrgoOS clean-room implementation:
+- Add fields valid_from, valid_to, invalidated_by_event_id.
+- Retrieval should prefer currently valid facts.
+- UI should show stale/invalidated memories.
+
+Do not copy:
+- No code from upstream.
+```
+
+### 4.5 `docs/research/delete-or-isolate-report.md`
+
+Before building production code, confirm:
+
+- Which cloned repos remain only in `research/upstream/`
+- Which are deleted
+- Which are used as package dependencies
+- Which are run as sidecars
+- Which license notices are required
+
+---
+
+## 5. Clean-Room Development Process
+
+Use this flow for every upstream-inspired feature.
+
+```text
+Clone upstream
+  ↓
+Read architecture
+  ↓
+Write notes
+  ↓
+Write UrgoOS feature spec
+  ↓
+Stop looking at source
+  ↓
+Implement from spec
+  ↓
+Add tests
+  ↓
+Document inspiration and license status
+```
+
+Never implement while directly referencing upstream code side-by-side unless intentionally vendoring with license compliance.
+
+Recommended practice:
+
+1. Research agent reads upstream and writes a spec.
+2. Human or second agent reviews spec.
+3. Execution agent implements from the spec only.
+4. Production code is compared conceptually, not line-for-line.
+
+---
+
+## 6. Target Repository Structure
+
+```text
+urgo-os/
+├── README.md
+├── LICENSE
+├── NOTICE.md
+├── .env.example
+├── docker-compose.yml
+├── docs/
+│   ├── vision.md
+│   ├── architecture.md
+│   ├── roadmap.md
+│   ├── security-model.md
+│   ├── memory-model.md
+│   ├── tool-permissions.md
+│   ├── local-runtime.md
+│   ├── research/
+│   │   ├── feature-matrix.md
+│   │   ├── license-matrix.md
+│   │   ├── architecture-notes.md
+│   │   ├── reusable-patterns.md
+│   │   └── delete-or-isolate-report.md
+│   └── adr/
+│       ├── 0001-use-protocol-first-architecture.md
+│       ├── 0002-use-sqlite-first.md
+│       ├── 0003-use-openai-compatible-model-gateway.md
+│       └── 0004-clean-room-upstream-policy.md
+├── research/
+│   └── upstream/
+│       └── .gitkeep
+├── packages/
+│   ├── urgo-protocol/
+│   ├── urgo-memory-schema/
+│   ├── urgo-tool-schema/
+│   ├── urgo-context-assembler/
+│   ├── urgo-eval/
+│   └── urgo-shared/
+├── services/
+│   ├── urgo-core/
+│   ├── memory-service/
+│   ├── tool-service/
+│   ├── graph-service/
+│   ├── workflow-service/
+│   ├── eval-service/
+│   └── model-gateway/
+├── adapters/
+│   ├── model-openai-compatible/
+│   ├── model-ollama/
+│   ├── model-llamacpp/
+│   ├── memory-sqlite/
+│   ├── memory-lancedb/
+│   ├── graph-graphiti/
+│   ├── graph-cognee/
+│   ├── workflow-langgraph/
+│   ├── memory-mem0/
+│   └── ui-openwebui-bridge/
+├── apps/
+│   ├── web/
+│   ├── cli/
+│   ├── mobile-pwa/
+│   └── desktop-optional/
+├── scripts/
+│   ├── dev-up.sh
+│   ├── dev-down.sh
+│   ├── seed-demo-data.ts
+│   ├── run-evals.ts
+│   └── clone-research-repos.sh
+└── tests/
+    ├── unit/
+    ├── integration/
+    ├── evals/
+    └── fixtures/
+```
+
+---
+
+## 7. Core Architecture
+
+### 7.1 Logical system map
+
+```text
+User UI / CLI / Discord / Phone
+        |
+        v
+Urgo Core API
+        |
+        +--> Context Assembler
+        |       |
+        |       +--> Memory Kernel
+        |       +--> Knowledge Retriever
+        |       +--> Active Persona
+        |       +--> Tool Results
+        |
+        +--> Model Gateway
+        |       |
+        |       +--> Ollama
+        |       +--> llama.cpp server
+        |       +--> LM Studio
+        |       +--> vLLM
+        |       +--> remote OpenAI-compatible APIs
+        |
+        +--> Tool Registry
+        |       |
+        |       +--> safe tools
+        |       +--> read-only tools
+        |       +--> approval-required tools
+        |
+        +--> Workflow Runtime
+        |
+        +--> Event Log
+        |
+        +--> Reflection Worker
+                |
+                +--> Memory Extraction
+                +--> Memory Consolidation
+                +--> Contradiction Detection
+                +--> Summaries
+```
+
+### 7.2 Runtime request cycle
+
+```text
+POST /chat
+  ↓
+Create event: user_message
+  ↓
+Classify intent
+  ↓
+Search memory
+  ↓
+Search project/session state
+  ↓
+Optionally search knowledge/docs
+  ↓
+Assemble compact context
+  ↓
+Call model gateway
+  ↓
+Return assistant response
+  ↓
+Create event: assistant_message
+  ↓
+Extract memory candidates
+  ↓
+Save or queue memory candidates
+  ↓
+Run lightweight eval/safety checks
+```
+
+### 7.3 Reflection cycle
+
+```text
+Every N messages or manually:
+  ↓
+Pull recent events
+  ↓
+Summarize session
+  ↓
+Extract durable facts/preferences/project decisions
+  ↓
+Merge duplicates
+  ↓
+Detect contradictions
+  ↓
+Update confidence/importance
+  ↓
+Generate reflection report
+  ↓
+Save consolidated memories
+```
+
+---
+
+## 8. Package Interfaces
+
+Use TypeScript for the initial protocol layer because it is agent-friendly, UI-friendly, and easy to consume from Node services. Python services may be added where library ecosystem requires it.
+
+### 8.1 `packages/urgo-protocol/src/model.ts`
+
+```ts
+export type ModelRole = "system" | "user" | "assistant" | "tool";
+
+export interface ChatMessage {
+  role: ModelRole;
+  content: string;
+  name?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ChatRequest {
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  tools?: ToolSpec[];
+  stream?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ChatResponse {
+  id: string;
+  model: string;
+  content: string;
+  toolCalls?: ToolCall[];
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+  raw?: unknown;
+}
+
+export interface ModelProvider {
+  name: string;
+  listModels(): Promise<string[]>;
+  chat(request: ChatRequest): Promise<ChatResponse>;
+  health(): Promise<ProviderHealth>;
+}
+```
+
+### 8.2 `packages/urgo-protocol/src/embeddings.ts`
+
+```ts
+export interface EmbeddingRequest {
+  input: string | string[];
+  model?: string;
+  instruction?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface EmbeddingResponse {
+  vectors: number[][];
+  dim: number;
+  model: string;
+}
+
+export interface EmbeddingProvider {
+  name: string;
+  embed(request: EmbeddingRequest): Promise<EmbeddingResponse>;
+  health(): Promise<ProviderHealth>;
+}
+```
+
+### 8.3 `packages/urgo-protocol/src/memory.ts`
+
+```ts
+export type MemoryType =
+  | "event"
+  | "fact"
+  | "preference"
+  | "project"
+  | "skill"
+  | "self"
+  | "tool"
+  | "mistake"
+  | "summary";
+
+export interface MemoryRecord {
+  id: string;
+  type: MemoryType;
+  text: string;
+  namespace?: string;
+  userId?: string;
+  sessionId?: string;
+  projectId?: string;
+  importance: number;
+  confidence: number;
+  createdAt: string;
+  updatedAt?: string;
+  lastUsedAt?: string;
+  useCount: number;
+  sourceEventId?: string;
+  validFrom?: string;
+  validTo?: string;
+  invalidatedByMemoryId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface MemoryQuery {
+  query: string;
+  namespace?: string;
+  userId?: string;
+  sessionId?: string;
+  projectId?: string;
+  types?: MemoryType[];
+  limit?: number;
+  includeInvalid?: boolean;
+  minConfidence?: number;
+}
+
+export interface MemoryResult {
+  record: MemoryRecord;
+  score: number;
+  scoreBreakdown?: {
+    semantic?: number;
+    recency?: number;
+    importance?: number;
+    confidence?: number;
+    typeBoost?: number;
+    stalePenalty?: number;
+  };
+  reason?: string;
+}
+
+export interface MemoryProvider {
+  write(memory: Omit<MemoryRecord, "id" | "createdAt" | "useCount">): Promise<MemoryRecord>;
+  search(query: MemoryQuery): Promise<MemoryResult[]>;
+  get(id: string): Promise<MemoryRecord | null>;
+  update(id: string, patch: Partial<MemoryRecord>): Promise<MemoryRecord>;
+  invalidate(id: string, reason: string, invalidatedByMemoryId?: string): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+```
+
+### 8.4 `packages/urgo-protocol/src/tools.ts`
+
+```ts
+export type ToolRiskLevel =
+  | "safe"
+  | "read_only"
+  | "approval_required"
+  | "dangerous"
+  | "forbidden";
+
+export interface ToolSpec {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  riskLevel: ToolRiskLevel;
+  requiresApproval: boolean;
+  tags?: string[];
+}
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  input: unknown;
+}
+
+export interface ToolContext {
+  userId?: string;
+  sessionId?: string;
+  projectId?: string;
+  workingDirectory?: string;
+  approvalToken?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ToolResult {
+  callId: string;
+  ok: boolean;
+  output?: unknown;
+  error?: string;
+  artifacts?: Array<{
+    name: string;
+    path?: string;
+    mimeType?: string;
+  }>;
+}
+
+export interface ToolProvider {
+  listTools(): Promise<ToolSpec[]>;
+  runTool(call: ToolCall, context: ToolContext): Promise<ToolResult>;
+}
+```
+
+### 8.5 `packages/urgo-protocol/src/context.ts`
+
+```ts
+export interface ContextAssemblyRequest {
+  userMessage: string;
+  userId?: string;
+  sessionId?: string;
+  projectId?: string;
+  personaId?: string;
+  tokenBudget: number;
+  retrievedMemories: MemoryResult[];
+  recentMessages: ChatMessage[];
+  toolResults?: ToolResult[];
+  systemConstraints?: string[];
+}
+
+export interface AssembledContext {
+  messages: ChatMessage[];
+  includedMemoryIds: string[];
+  tokenEstimate: number;
+  rationale: string[];
+}
+
+export interface ContextAssembler {
+  assemble(request: ContextAssemblyRequest): Promise<AssembledContext>;
+}
+```
+
+### 8.6 `packages/urgo-protocol/src/workflow.ts`
+
+```ts
+export type WorkflowStatus =
+  | "pending"
+  | "running"
+  | "waiting_for_approval"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export interface WorkflowRun {
+  id: string;
+  name: string;
+  status: WorkflowStatus;
+  state: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  checkpointId?: string;
+}
+
+export interface WorkflowProvider {
+  start(name: string, input: Record<string, unknown>): Promise<WorkflowRun>;
+  resume(runId: string, input?: Record<string, unknown>): Promise<WorkflowRun>;
+  cancel(runId: string): Promise<void>;
+  get(runId: string): Promise<WorkflowRun | null>;
+}
+```
+
+---
+
+## 9. Data Model: SQLite First
+
+Use SQLite first because it is simple, inspectable, local-first, and easy to back up.
+
+### 9.1 Initial schema
+
+```sql
+CREATE TABLE events (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  user_id TEXT,
+  session_id TEXT,
+  project_id TEXT,
+  content TEXT NOT NULL,
+  metadata_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE memories (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  text TEXT NOT NULL,
+  namespace TEXT,
+  user_id TEXT,
+  session_id TEXT,
+  project_id TEXT,
+  importance REAL NOT NULL DEFAULT 0.5,
+  confidence REAL NOT NULL DEFAULT 0.7,
+  created_at TEXT NOT NULL,
+  updated_at TEXT,
+  last_used_at TEXT,
+  use_count INTEGER NOT NULL DEFAULT 0,
+  source_event_id TEXT,
+  valid_from TEXT,
+  valid_to TEXT,
+  invalidated_by_memory_id TEXT,
+  metadata_json TEXT
+);
+
+CREATE TABLE memory_embeddings (
+  memory_id TEXT PRIMARY KEY,
+  model TEXT NOT NULL,
+  dim INTEGER NOT NULL,
+  embedding BLOB NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY(memory_id) REFERENCES memories(id)
+);
+
+CREATE TABLE tool_calls (
+  id TEXT PRIMARY KEY,
+  event_id TEXT,
+  tool_name TEXT NOT NULL,
+  input_json TEXT NOT NULL,
+  output_json TEXT,
+  ok INTEGER NOT NULL,
+  risk_level TEXT NOT NULL,
+  approved_by_user INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  completed_at TEXT
+);
+
+CREATE TABLE reflections (
+  id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  input_event_ids_json TEXT,
+  output_memory_ids_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE conversations (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  project_id TEXT,
+  title TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
+CREATE TABLE projects (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  root_path TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
+CREATE INDEX idx_memories_user_type ON memories(user_id, type);
+CREATE INDEX idx_memories_project_type ON memories(project_id, type);
+CREATE INDEX idx_memories_validity ON memories(valid_from, valid_to);
+CREATE INDEX idx_events_session_created ON events(session_id, created_at);
+```
+
+### 9.2 Later graph schema
+
+Do not build graph memory first. Add it after base memory works.
+
+```sql
+CREATE TABLE entities (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT,
+  canonical_name TEXT,
+  metadata_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
+CREATE TABLE relationships (
+  id TEXT PRIMARY KEY,
+  source_entity_id TEXT NOT NULL,
+  target_entity_id TEXT NOT NULL,
+  relation_type TEXT NOT NULL,
+  text TEXT NOT NULL,
+  confidence REAL NOT NULL DEFAULT 0.7,
+  source_event_id TEXT,
+  valid_from TEXT,
+  valid_to TEXT,
+  invalidated_by_relationship_id TEXT,
+  metadata_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT,
+  FOREIGN KEY(source_entity_id) REFERENCES entities(id),
+  FOREIGN KEY(target_entity_id) REFERENCES entities(id)
+);
+```
+
+---
+
+## 10. Memory Kernel Design
+
+### 10.1 Memory types
+
+UrgoOS should support:
+
+| Type | Purpose |
+|---|---|
+| `event` | Raw thing that happened |
+| `fact` | Stable known fact |
+| `preference` | User/system preference |
+| `project` | Project-specific knowledge |
+| `skill` | Reusable procedure |
+| `self` | Agent identity/personality memory |
+| `tool` | Tool behavior/result memory |
+| `mistake` | Known failure/correction |
+| `summary` | Consolidated session/project summary |
+
+### 10.2 Scoring formula
+
+Initial retrieval score:
+
+```text
+score =
+  semantic_similarity * 0.55
++ importance          * 0.18
++ confidence          * 0.10
++ recency             * 0.08
++ type_boost          * 0.06
++ project_boost       * 0.08
+- stale_penalty       * 0.10
+- contradiction_penalty
+```
+
+Keep this tunable in config.
+
+### 10.3 Memory extraction policy
+
+After each conversation turn, run a memory extraction pass.
+
+Prompt goal:
+
+```text
+Extract durable memory candidates from the latest interaction.
+Only extract:
+- stable user preferences
+- project decisions
+- recurring goals
+- corrections to prior assumptions
+- important facts needed later
+- agent behavior preferences
+Do not store:
+- temporary moods
+- one-off casual comments
+- sensitive personal details unless explicit
+- secrets
+- credentials
+- unverified claims as facts
+Return JSON only.
+```
+
+Expected JSON shape:
+
+```json
+{
+  "candidates": [
+    {
+      "type": "project",
+      "text": "User wants UrgoOS to be built by first researching existing wrappers, then reimplementing consolidated features cleanly.",
+      "importance": 0.9,
+      "confidence": 0.95,
+      "namespace": "urgo-os",
+      "reason": "Long-term project architecture decision"
+    }
+  ]
+}
+```
+
+### 10.4 Memory approval modes
+
+Config option:
+
+```text
+URGO_MEMORY_MODE=manual | auto_low_risk | auto_all
+```
+
+Recommended default:
+
+```text
+URGO_MEMORY_MODE=auto_low_risk
+```
+
+Rules:
+
+- Save low-risk project/preferences automatically.
+- Ask approval for self-memory changes.
+- Ask approval for sensitive or identity-level memories.
+- Never save secrets.
+- Never save raw credentials.
+- Never save private keys.
+- Never save seed phrases.
+
+### 10.5 Contradiction handling
+
+Do not delete contradicted memories by default.
+
+Instead:
+
+1. Create a new memory.
+2. Mark old memory as invalidated.
+3. Link old memory to new memory.
+4. Retrieval prefers current valid memories.
+5. UI shows the history.
+
+Example:
+
+```json
+{
+  "old": "User prefers nano.",
+  "new": "User prefers vi over nano.",
+  "action": "invalidate_old_memory"
+}
+```
+
+---
+
+## 11. Context Assembler Design
+
+The context assembler is one of the most important pieces.
+
+### 11.1 Prompt structure
+
+Recommended structure:
+
+```text
+SYSTEM:
+- durable behavior rules
+- safety/tool rules
+- response style
+
+IDENTITY:
+- active persona
+- current capabilities
+- memory boundaries
+
+ACTIVE USER PROFILE:
+- compact user preferences relevant to this task
+
+PROJECT CONTEXT:
+- project summary
+- current architecture constraints
+- recent decisions
+
+RELEVANT MEMORIES:
+- numbered memories with reasons and confidence
+
+TOOL STATE:
+- available tools
+- approval requirements
+- recent tool results
+
+CURRENT USER MESSAGE:
+- exact latest user request
+```
+
+### 11.2 Attention-bias mitigation
+
+Rules:
+
+1. Keep injected memory short.
+2. Use numbered memories.
+3. Include reason for each memory.
+4. Put identity and active goals near the top.
+5. Put the current user message near the bottom.
+6. Do not bury critical constraints in the middle of huge context.
+7. Use summaries before raw transcript.
+8. Cap retrieved memories initially at 8.
+9. Do not inject raw event logs unless explicitly needed.
+10. Prefer project namespace matches.
+
+### 11.3 Token budget
+
+Initial defaults:
+
+```text
+Small local model:
+- max prompt budget: 4096 tokens
+- system/persona: 500
+- user/project profile: 600
+- retrieved memories: 900
+- recent conversation: 1200
+- tool results/docs: 700
+- buffer: 196
+
+Larger local/remote model:
+- max prompt budget: 8192 to 32768
+- scale sections proportionally
+```
+
+---
+
+## 12. Tool Runtime and Safety Model
+
+### 12.1 Tool risk levels
+
+| Level | Examples | Approval |
+|---|---|---|
+| safe | calculator, time, memory search | no |
+| read_only | read file, list dir, git diff | maybe configurable |
+| approval_required | write file, run shell, network request | yes |
+| dangerous | delete files, install packages, deploy | explicit yes |
+| forbidden | credential exfiltration, malware, destructive hidden ops | never |
+
+### 12.2 Initial tools
+
+Build these first:
+
+```text
+memory.search
+memory.write_candidate
+memory.list
+memory.invalidate
+
+time.now
+calculator.eval
+
+file.list_dir
+file.read
+file.search_text
+
+git.status
+git.diff
+
+shell.run_approved
+```
+
+Later:
+
+```text
+web.search
+docs.ingest
+project.index
+workflow.start
+workflow.resume
+agent.delegate
+```
+
+### 12.3 Tool execution rule
+
+The model should never directly execute tools. It should request a tool call. Urgo Core validates:
+
+- tool exists
+- schema is valid
+- risk level
+- path allowlist
+- approval status
+- command allowlist/denylist
+- output redaction
+
+Then the tool runtime executes.
+
+---
+
+## 13. Model Gateway
+
+### 13.1 Supported runtimes
+
+Initial support:
+
+```text
+OpenAI-compatible generic endpoint
+Ollama
+llama.cpp server
+LM Studio
+```
+
+Later support:
+
+```text
+vLLM
+TensorRT-LLM
+remote broker worker
+specialist model sidecars
+```
+
+### 13.2 Why OpenAI-compatible first
+
+OpenAI-compatible chat and embeddings endpoints make it easy to swap:
+
+- local Orin model
+- Windows 3090 LM Studio
+- llama.cpp server
+- vLLM server
+- remote fallback
+
+without rewriting Urgo Core.
+
+### 13.3 Provider config
+
+```env
+URGO_CHAT_PROVIDER=openai_compatible
+URGO_CHAT_BASE_URL=http://127.0.0.1:8082/v1
+URGO_CHAT_MODEL=qwen3.5-9b
+
+URGO_EMBED_PROVIDER=openai_compatible
+URGO_EMBED_BASE_URL=http://127.0.0.1:8083/v1
+URGO_EMBED_MODEL=qwen3-embedding-0.6b
+URGO_EMBED_DIM=1024
+```
+
+---
+
+## 14. UI Requirements
+
+### 14.1 MVP Web UI
+
+Build a minimal local web UI with:
+
+- chat
+- model selector
+- memory browser
+- memory approval queue
+- project selector
+- tool-call log
+- settings
+- health panel
+
+### 14.2 Memory browser
+
+Required fields:
+
+- text
+- type
+- confidence
+- importance
+- namespace
+- project
+- source event
+- created date
+- last used date
+- validity status
+- invalidate/delete buttons
+
+### 14.3 Tool-call log
+
+Show:
+
+- tool name
+- risk level
+- input
+- output
+- approval status
+- timestamp
+- linked assistant message
+
+### 14.4 Open WebUI relationship
+
+Do not copy Open WebUI UI code into UrgoOS core. Options:
+
+1. Use it temporarily as a model UI.
+2. Build a small custom Urgo web UI.
+3. Add an Open WebUI bridge later if useful.
+4. Use Open WebUI only as UX inspiration unless license review approves deeper integration.
+
+---
+
+## 15. Evaluation Harness
+
+This project needs evals from day one.
+
+### 15.1 Memory evals
+
+Create tests for:
+
+- remembers stated preference after 10 turns
+- does not remember temporary detail
+- retrieves project memory by namespace
+- updates old memory when contradicted
+- marks invalid memory correctly
+- does not inject unrelated memories
+- does not overfit to stale memories
+- summarizes session correctly
+
+### 15.2 Tool evals
+
+Create tests for:
+
+- safe tools run without approval
+- write tools require approval
+- shell tools require approval
+- path traversal is blocked
+- secrets are redacted
+- forbidden tools are refused
+- tool output is linked to events
+
+### 15.3 Context evals
+
+Create tests for:
+
+- current user message appears near end
+- critical system constraints appear near top
+- memory count capped
+- memory reason included
+- no raw huge transcript dump
+- token budget respected
+
+### 15.4 Agent evals
+
+Create scenario tests:
+
+```text
+Scenario: User changes editor preference from nano to vi
+Expected:
+- old preference invalidated
+- new preference retrieved later
+- assistant recommends vi commands
+```
+
+```text
+Scenario: User asks to run dangerous shell command
+Expected:
+- assistant requests approval or refuses
+- no automatic execution
+```
+
+```text
+Scenario: User asks about project architecture after several sessions
+Expected:
+- project summary retrieved
+- relevant decisions cited internally
+- stale decisions excluded
+```
+
+---
+
+## 16. Roadmap
+
+### Phase 0 — Repo setup and research quarantine
+
+Deliverables:
+
+- repository scaffold
+- `research/upstream/`
+- clone script
+- clean-room policy
+- license matrix template
+- feature matrix template
+
+Acceptance criteria:
+
+- upstream repos clone successfully
+- no production imports from research folder
+- docs are generated
+- each upstream has commit SHA recorded
+
+### Phase 1 — Protocol-first skeleton
+
+Deliverables:
+
+- `packages/urgo-protocol`
+- TypeScript interfaces
+- basic shared types
+- test stubs
+- ADRs
+
+Acceptance criteria:
+
+- protocol package builds
+- interfaces cover model, memory, tools, context, workflow, eval
+- no external framework dependency lock-in
+
+### Phase 2 — Local chat core
+
+Deliverables:
+
+- `services/urgo-core`
+- `services/model-gateway`
+- OpenAI-compatible chat provider
+- `/health`
+- `/chat`
+- event logging
+
+Acceptance criteria:
+
+- can send a message through local model endpoint
+- events are saved
+- response is returned
+- health shows configured model provider
+
+### Phase 3 — SQLite memory MVP
+
+Deliverables:
+
+- SQLite schema
+- memory provider
+- manual memory add/search
+- memory retrieval before chat
+- context assembler v0
+
+Acceptance criteria:
+
+- user can add memory
+- memory is retrieved for relevant message
+- retrieved memory appears in prompt
+- memory use is logged
+
+### Phase 4 — Automatic memory extraction
+
+Deliverables:
+
+- post-turn memory extractor
+- memory candidate queue
+- approval UI/API
+- duplicate detection v0
+
+Acceptance criteria:
+
+- assistant proposes durable memory candidates
+- user can approve/reject/edit
+- approved memory is retrievable later
+
+### Phase 5 — Reflection worker
+
+Deliverables:
+
+- session summarizer
+- memory consolidation job
+- contradiction detection v0
+- reflection reports
+
+Acceptance criteria:
+
+- recent events produce summary
+- duplicate memories can merge
+- contradicted memory can be invalidated
+- reflection output is saved
+
+### Phase 6 — Tool runtime
+
+Deliverables:
+
+- tool registry
+- safe tools
+- read-only file/git tools
+- approval-required shell tool
+- tool logs
+
+Acceptance criteria:
+
+- safe tools execute
+- risky tools require approval
+- path allowlist works
+- tool calls are auditable
+
+### Phase 7 — UI MVP
+
+Deliverables:
+
+- web chat
+- memory browser
+- approval queue
+- tool log
+- health panel
+
+Acceptance criteria:
+
+- usable from desktop browser
+- mobile-friendly enough for phone control
+- memory can be inspected and edited
+
+### Phase 8 — Graph memory experimental
+
+Deliverables:
+
+- entity/relationship schema
+- graph extraction worker
+- Graphiti/Cognee research adapter or sidecar
+- temporal fact validity
+
+Acceptance criteria:
+
+- entity facts can be extracted
+- relationships are queryable
+- old facts can be invalidated
+- retrieval can combine vector + graph results
+
+### Phase 9 — Multi-agent workbench experimental
+
+Deliverables:
+
+- agent role definitions
+- planner/coder/critic/memory-librarian pattern
+- workflow state machine
+- human approval gates
+
+Acceptance criteria:
+
+- multi-step tasks can be planned
+- tool execution remains gated
+- critic can review outputs
+- state persists across restart
+
+### Phase 10 — Distributed UrgoOS
+
+Deliverables:
+
+- worker registry
+- capability routing
+- Orin always-on node
+- 3090 heavy worker
+- VPS broker compatibility
+- mobile control path
+
+Acceptance criteria:
+
+- low-power node can delegate heavy tasks
+- job state survives failure
+- model provider can route by capability
+
+---
+
+## 17. Initial Implementation Commands
+
+### 17.1 Create workspace
+
+```bash
+mkdir urgo-os
+cd urgo-os
+
+git init
+
+mkdir -p docs/research docs/adr research/upstream packages services adapters apps scripts tests/unit tests/integration tests/evals tests/fixtures
+touch README.md NOTICE.md .env.example docker-compose.yml
+touch docs/vision.md docs/architecture.md docs/roadmap.md docs/security-model.md docs/memory-model.md docs/tool-permissions.md docs/local-runtime.md
+touch docs/research/feature-matrix.md docs/research/license-matrix.md docs/research/architecture-notes.md docs/research/reusable-patterns.md docs/research/delete-or-isolate-report.md
+```
+
+### 17.2 Create clone script
+
+Create `scripts/clone-research-repos.sh`:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+mkdir -p research/upstream
+cd research/upstream
+
+clone_or_update() {
+  local repo="$1"
+  local dir="$2"
+
+  if [ -d "$dir/.git" ]; then
+    echo "Updating $dir"
+    git -C "$dir" fetch --all --prune
+  else
+    echo "Cloning $repo"
+    git clone "$repo" "$dir"
+  fi
+
+  echo "$dir @ $(git -C "$dir" rev-parse HEAD)"
+}
+
+clone_or_update https://github.com/letta-ai/letta.git letta
+clone_or_update https://github.com/letta-ai/agent-file.git agent-file
+clone_or_update https://github.com/langchain-ai/langgraph.git langgraph
+clone_or_update https://github.com/run-llama/llama_index.git llama_index
+clone_or_update https://github.com/mem0ai/mem0.git mem0
+clone_or_update https://github.com/getzep/graphiti.git graphiti
+clone_or_update https://github.com/topoteretes/cognee.git cognee
+clone_or_update https://github.com/open-webui/open-webui.git open-webui
+clone_or_update https://github.com/ag2ai/ag2.git ag2
+```
+
+Then:
+
+```bash
+chmod +x scripts/clone-research-repos.sh
+./scripts/clone-research-repos.sh
+```
+
+---
+
+## 18. Agent Task Prompt: Research Agent
+
+Give this to the first coding/planning agent.
+
+```markdown
+# Task: UrgoOS Upstream Research and Clean-Room Architecture Plan
+
+You are the research/planning agent for UrgoOS.
+
+UrgoOS is a local-first cognitive runtime inspired by the best features of Letta/MemGPT, Agent File, LangGraph, LlamaIndex, Mem0, Graphiti/Zep, Cognee, Open WebUI, and AG2/AutoGen.
+
+Important:
+- Do not copy upstream implementation into production code.
+- Clone repos only under `research/upstream/`.
+- Production code must be based on our own specs and interfaces.
+- Document licenses and commit SHAs.
+- Treat Open WebUI carefully due to its license/branding terms.
+- Prefer adapters/sidecars/dependencies over vendoring code.
+- Build UrgoOS around our own `urgo-protocol`.
+
+Steps:
+1. Run `scripts/clone-research-repos.sh`.
+2. For each upstream repo, record:
+   - repo URL
+   - checked commit SHA
+   - license
+   - major modules
+   - architecture overview
+   - memory model
+   - tool model
+   - workflow model
+   - UI/deployment model
+   - features worth recreating
+   - features to avoid
+   - recommended integration mode
+3. Fill out:
+   - `docs/research/feature-matrix.md`
+   - `docs/research/license-matrix.md`
+   - `docs/research/architecture-notes.md`
+   - `docs/research/reusable-patterns.md`
+4. Create ADRs:
+   - `docs/adr/0001-use-protocol-first-architecture.md`
+   - `docs/adr/0002-use-sqlite-first.md`
+   - `docs/adr/0003-use-openai-compatible-model-gateway.md`
+   - `docs/adr/0004-clean-room-upstream-policy.md`
+5. Create a final implementation plan for the execution agent:
+   - phases
+   - files to create
+   - acceptance criteria
+   - tests
+   - risk notes
+
+Output:
+- Do not build production features yet.
+- Produce a clear plan that the execution agent can implement.
+```
+
+---
+
+## 19. Agent Task Prompt: Execution Agent
+
+Give this to the second coding agent after the research agent finishes.
+
+```markdown
+# Task: Build UrgoOS MVP from Clean-Room Specs
+
+You are the execution agent for UrgoOS.
+
+Use the research documents and ADRs as your source of truth. Do not copy upstream source code into production. Implement from the UrgoOS specs only.
+
+MVP target:
+- protocol-first TypeScript package
+- local OpenAI-compatible model gateway
+- SQLite event log
+- SQLite memory store
+- context assembler v0
+- `/chat`, `/health`, `/memory`, `/memory/search`
+- post-turn memory candidate extraction
+- memory approval queue
+- basic web UI or CLI
+- unit/integration tests
+
+Implementation order:
+1. Create package workspace.
+2. Implement `packages/urgo-protocol`.
+3. Implement SQLite schema and migrations.
+4. Implement `MemoryProvider`.
+5. Implement `ModelProvider` for OpenAI-compatible endpoints.
+6. Implement `ContextAssembler`.
+7. Implement `services/urgo-core` API.
+8. Implement event logging.
+9. Implement manual memory CRUD/search.
+10. Implement chat flow with retrieved memories.
+11. Implement memory extraction candidate queue.
+12. Implement approval/rejection endpoints.
+13. Add tests.
+14. Add README run instructions.
+
+Acceptance criteria:
+- `npm test` or equivalent passes.
+- `POST /health` or `GET /health` shows service status.
+- `POST /chat` sends a message to the configured model.
+- events are logged.
+- manual memory search works.
+- relevant memories are injected into chat context.
+- memory extraction creates candidates after a turn.
+- user can approve/reject candidates.
+- no production code imports from `research/upstream`.
+- license notices are preserved where required.
+
+Do not implement graph memory or multi-agent workflows yet except as interfaces/stubs.
+```
+
+---
+
+## 20. Suggested MVP API
+
+### 20.1 Health
+
+```http
+GET /health
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "version": "0.1.0",
+  "modelGateway": {
+    "ok": true,
+    "provider": "openai_compatible",
+    "model": "qwen3.5-9b"
+  },
+  "memory": {
+    "ok": true,
+    "provider": "sqlite"
+  }
+}
+```
+
+### 20.2 Chat
+
+```http
+POST /chat
+```
+
+Request:
+
+```json
+{
+  "userId": "default",
+  "sessionId": "session-1",
+  "projectId": "urgo-os",
+  "message": "What should we build next?"
+}
+```
+
+Response:
+
+```json
+{
+  "messageId": "evt_assistant_...",
+  "content": "Based on your current UrgoOS plan...",
+  "includedMemoryIds": ["mem_1", "mem_2"],
+  "memoryCandidates": ["cand_1"]
+}
+```
+
+### 20.3 Add memory
+
+```http
+POST /memory
+```
+
+Request:
+
+```json
+{
+  "type": "preference",
+  "text": "User prefers incremental implementation plans with acceptance criteria.",
+  "importance": 0.9,
+  "confidence": 0.95,
+  "projectId": "urgo-os"
+}
+```
+
+### 20.4 Search memory
+
+```http
+POST /memory/search
+```
+
+Request:
+
+```json
+{
+  "query": "implementation plan style",
+  "projectId": "urgo-os",
+  "limit": 8
+}
+```
+
+### 20.5 Approve candidate
+
+```http
+POST /memory/candidates/{id}/approve
+```
+
+---
+
+## 21. Configuration
+
+`.env.example`:
+
+```env
+URGO_ENV=development
+URGO_PORT=8787
+
+URGO_DB_PATH=./data/urgo.sqlite
+URGO_DATA_DIR=./data
+
+URGO_CHAT_PROVIDER=openai_compatible
+URGO_CHAT_BASE_URL=http://127.0.0.1:8082/v1
+URGO_CHAT_MODEL=qwen3.5-9b
+URGO_CHAT_API_KEY=not-needed-for-local
+
+URGO_EMBED_PROVIDER=openai_compatible
+URGO_EMBED_BASE_URL=http://127.0.0.1:8083/v1
+URGO_EMBED_MODEL=qwen3-embedding-0.6b
+URGO_EMBED_DIM=1024
+URGO_EMBED_API_KEY=not-needed-for-local
+
+URGO_MEMORY_MODE=auto_low_risk
+URGO_MAX_RETRIEVED_MEMORIES=8
+URGO_CONTEXT_TOKEN_BUDGET=4096
+
+URGO_TOOL_FILE_ROOT=./workspace
+URGO_TOOL_SHELL_ENABLED=false
+URGO_TOOL_APPROVAL_REQUIRED=true
+```
+
+---
+
+## 22. Security Boundaries
+
+### 22.1 Secrets
+
+Never store:
+
+- API keys
+- passwords
+- private keys
+- seed phrases
+- OAuth tokens
+- SSH keys
+- session cookies
+
+Add redaction patterns before event logging.
+
+### 22.2 Filesystem
+
+File tools must enforce:
+
+- allowlisted root directories
+- realpath checks
+- no path traversal
+- no hidden destructive writes
+- no reading secrets by default
+
+### 22.3 Shell
+
+Shell tool default:
+
+```env
+URGO_TOOL_SHELL_ENABLED=false
+```
+
+When enabled:
+
+- approval required
+- command logged
+- output logged with redaction
+- denylist dangerous commands
+- run in sandbox where possible
+
+### 22.4 Memory safety
+
+Memory must be:
+
+- inspectable
+- editable
+- deletable
+- invalidatable
+- exportable
+
+The user must always be able to see and correct what UrgoOS thinks it remembers.
+
+---
+
+## 23. Design Decisions to Lock Early
+
+Create ADRs for these:
+
+1. Protocol-first architecture
+2. SQLite first
+3. OpenAI-compatible gateway first
+4. Research repos quarantined
+5. Manual/low-risk memory approval
+6. Tool approval gates
+7. Context assembler owns prompt structure
+8. Graph memory later, not MVP
+9. Multi-agent later, not MVP
+10. UI built custom first, Open WebUI bridge optional
+
+---
+
+## 24. What Not to Build Yet
+
+Do **not** build these in the first MVP:
+
+- full multi-agent swarm
+- autonomous long-running shell agent
+- direct production integration of all upstream projects
+- graph memory as a hard dependency
+- fine-tuning
+- self-modifying model weights
+- plugin marketplace
+- cloud auth/multi-tenant SaaS
+- mobile native app
+- full Open WebUI replacement
+- complex distributed scheduler
+
+Build the small cognitive kernel first.
+
+---
+
+## 25. Definition of Done for UrgoOS v0.1
+
+UrgoOS v0.1 is done when:
+
+- A local model endpoint can be used for chat.
+- Conversations are logged as events.
+- Memories can be manually added.
+- Memories can be searched.
+- Relevant memories are injected into context.
+- Post-turn memory extraction creates candidate memories.
+- Candidate memories can be approved/rejected.
+- Context assembly is inspectable.
+- Tool system exists with at least safe/read-only stubs.
+- SQLite database is created and migrated.
+- Tests cover memory, context, and API basics.
+- Research docs and license matrix exist.
+- No production code imports from `research/upstream`.
+
+---
+
+## 26. Long-Term North Star
+
+UrgoOS should eventually feel like:
+
+- a persistent local assistant,
+- a memory-aware development partner,
+- a project historian,
+- a tool-using operator,
+- a safe local automation layer,
+- a personal cognitive runtime,
+- and a small-model amplifier.
+
+The philosophical goal is not to fake a soul. The engineering goal is to build the substrate for continuity:
+
+```text
+memory of what matters
+tools to act
+reflection to improve
+retrieval to focus
+personality to stay coherent
+approval gates to stay safe
+```
+
+Build the nervous system, not a pile of organs.
+
+---
+
+## 27. Immediate Next Action for Coding Agent
+
+Start here:
+
+1. Create the repo scaffold.
+2. Add the clone script.
+3. Clone upstream repos into `research/upstream/`.
+4. Generate feature/license/reusable-pattern docs.
+5. Create ADRs.
+6. Stop.
+7. Hand the research plan to the execution agent.
+
+No production feature implementation until research docs are complete.
+
